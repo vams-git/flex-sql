@@ -26,14 +26,6 @@ begin
          raise vErr;
       end if;
    end if; 
-   
-   /*if vOrg in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE') then
-      if ack.ack_type ='01' and ack.ack_requiredtoclose ='YES' 
-        and ack.ack_notes is null and ack.ack_not_applicable is not null
-        and ack.ack_updatedby = o7sess.cur_user then
-        raise vErr;
-      end if;
-   end if;*/
 
 EXCEPTION
    WHEN vErr then
