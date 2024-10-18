@@ -4,8 +4,7 @@ declare
   cOrg            number;
   vErr            exception;
 begin
-  select * into ack from r5actchecklists where rowid=:rowid;--ACK_EVENT = '1005348714' AND ACK_ACT = 11 AND ACK_SEQUENCE = 199;
-  
+  select * into ack from r5actchecklists where rowid=:rowid;
   if ack.ack_event is null then
     return;
   end if;
