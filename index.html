@@ -23,10 +23,12 @@
     a {
       font-family: sans-serif;
       font-weight: 500;
-      padding: 5px;
-      padding-inline: 10px;
+      padding: 5px 10px;
+      text-align: center;
       background: #bdbdbd;
       border-radius: 3px;
+    text-decoration: none;
+    color: #000;
     }
 
     a:hover {
@@ -100,9 +102,9 @@
           + param['tenant'] + '/' + param['tablename'] + '/'
           + param['triggername'] + '/' + param['sequencenumber'] + '.sql';
         link.href = url;
+        link.target = '_blank';
         link.classList.remove('hide');
       }
     })();
   </script>
-
 </html>
