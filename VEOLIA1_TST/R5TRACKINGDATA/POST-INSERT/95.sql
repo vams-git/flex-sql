@@ -1,0 +1,701 @@
+declare
+c1 r5trackingdata%rowtype;
+oud R5OBJUSAGEDEFS%rowtype;
+evt r5events%rowtype;
+ack r5actchecklists%rowtype;
+obj r5objects%rowtype;
+rea r5readings%rowtype;
+susr r5users%rowtype;
+psq R5PATTERNSEQUENCES%rowtype;
+ceq number;
+VRFI R5REPORTFILTERS%ROWTYPE;
+chk VARCHAR2(3);
+imsg varchar2(400);
+err exception;
+  CURSOR MPPSQ(PMPORG VARCHAR2,PMP VARCHAR2) IS
+    SELECT PSQ_PK, PSQ_REVISION
+      FROM R5PATTERNSEQUENCES
+      WHERE PSQ_MP_ORG = PMPORG AND PSQ_MP = PMP;
+  CURSOR MPEQ(PMPORG VARCHAR2,PMP VARCHAR2) IS
+    SELECT PEQ_OBJECT_ORG, PEQ_OBJECT, PEQ_REVISION
+      FROM R5PATTERNEQUIPMENT
+      WHERE PEQ_MP_ORG = PMPORG AND PEQ_MP = PMP;
+  CURSOR EVTMP(PPK VARCHAR2,PRV VARCHAR2) IS
+    SELECT EVT_CODE
+      FROM R5EVENTS
+      WHERE EVT_PSQPK = PPK AND EVT_MP_REV = PRV;
+  CURSOR CRFI(VUSR VARCHAR2) IS
+    SELECT RFI_FUNC,RFI_NAME
+      FROM R5REPORTFILTERS
+      WHERE RFI_USER = VUSR;
+  CURSOR COCK(VUSR VARCHAR2) IS
+    SELECT OCK_CODE
+      FROM R5OPERATORCHECKLISTS
+      WHERE OCK_CREATEDBY = VUSR;
+  CURSOR COCU(VUSR VARCHAR2) IS
+    SELECT OCK_CODE
+      FROM R5OPERATORCHECKLISTS
+      WHERE OCK_UPDATEDBY = VUSR;
+  CURSOR CDOC(VUSR VARCHAR2) IS
+    SELECT DOC_CODE
+      FROM R5DOCUMENTS
+      WHERE DOC_CREATEDBY = VUSR;
+  CURSOR CDOU(VUSR VARCHAR2) IS
+    SELECT DOC_CODE
+      FROM R5DOCUMENTS
+      WHERE DOC_UPDATEDBY = VUSR;
+  CURSOR CACU(VUSR VARCHAR2) IS
+    SELECT ACK_CODE
+      FROM R5ACTCHECKLISTS
+      WHERE ACK_UPDATEDBY = VUSR;
+  CURSOR CEVT(VUSR VARCHAR2) IS
+    SELECT EVT_CODE
+      FROM R5EVENTS
+      WHERE EVT_CREATEDBY = VUSR;
+  CURSOR CEVU(VUSR VARCHAR2) IS
+    SELECT EVT_CODE
+      FROM R5EVENTS
+      WHERE EVT_UPDATEDBY = VUSR;
+  CURSOR CACK(VOCK VARCHAR2) IS
+    SELECT ACK_CODE
+      FROM R5ACTCHECKLISTS
+      WHERE ACK_RENTITY = 'OPCK' AND ACK_ENTITYKEY = VOCK;
+begin
+select * into c1 from r5trackingdata
+where rowid = :rowid;
+
+if c1.tkd_trans = 'MPPY' then 
+   FOR PSQPK IN MPPSQ(C1.TKD_PROMPTDATA1,C1.TKD_PROMPTDATA2) LOOP
+      UPDATE R5PATTERNSEQUENCES
+      SET PSQ_MP_ORG = C1.TKD_PROMPTDATA3,
+      PSQ_MP = C1.TKD_PROMPTDATA4
+      WHERE PSQ_PK = PSQPK.PSQ_PK AND PSQ_REVISION = PSQPK.PSQ_REVISION;
+
+      SELECT * INTO psq FROM R5PATTERNSEQUENCES WHERE PSQ_PK = PSQPK.PSQ_PK AND PSQ_REVISION = PSQPK.PSQ_REVISION;
+
+      FOR PSQEV IN EVTMP(PSQPK.PSQ_PK,PSQPK.PSQ_REVISION) LOOP
+          UPDATE R5EVENTS
+          SET EVT_MP_ORG = C1.TKD_PROMPTDATA3,
+          EVT_MP = C1.TKD_PROMPTDATA4,
+          EVT_STANDWORK = psq.PSQ_STANDWORK
+          WHERE EVT_CODE = PSQEV.EVT_CODE;
+
+      END LOOP;
+   END LOOP;
+   FOR PSQEQ IN MPEQ(C1.TKD_PROMPTDATA1,C1.TKD_PROMPTDATA2) LOOP
+      UPDATE R5PATTERNEQUIPMENT
+      SET PEQ_MP_ORG = C1.TKD_PROMPTDATA3,
+      PEQ_MP = C1.TKD_PROMPTDATA4
+      WHERE PEQ_MP_ORG = C1.TKD_PROMPTDATA1 AND PEQ_MP = C1.TKD_PROMPTDATA2 
+        AND PEQ_OBJECT_ORG = PSQEQ.PEQ_OBJECT_ORG AND PEQ_OBJECT = PSQEQ.PEQ_OBJECT
+        AND PEQ_REVISION = PSQEQ.PEQ_REVISION;
+   END LOOP;
+   o7interface.trkdel(c1.tkd_transid);
+end if;
+
+IF C1.TKD_TRANS = 'MPPX' THEN
+/* copy user manager */
+IF NVL(C1.TKD_PROMPTDATA1,'NOTEXIST') = 'NOTEXIST' THEN
+   imsg := 'MPPX' || chr(10) || 'missing func selector prompt';
+   RAISE err;
+END IF;
+IF C1.TKD_PROMPTDATA1 NOT IN ('ADDDEFDDS','DELDEFDDS',
+   'CPYSC','CLRSC','ADDSCH','DELSCH','CPYRPT','DELRPT',
+   'CPYCMT','CPYOCK','CPYOCU','CPYDOC','CPYDOU',
+   'CPYACU') THEN
+   imsg := 'MPPX' || chr(10) || 'invalid func selector prompt';
+   RAISE err;
+END IF;
+/* add default dataspy */
+IF C1.TKD_PROMPTDATA1 = 'ADDDEFDDS' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL OR
+      C1.TKD_PROMPTDATA4 IS NULL ) THEN
+      imsg  := 'MPPX_ADDDEFDDS';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref grid id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA4 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref dataspy id  missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA5 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref dataspy filter  missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5GRID
+   WHERE GRD_GRIDID = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_ADDDEFDDS' || chr(10) || 'invalid ref grid id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_ADDDEFDDS' || chr(10) || 'invalid ref user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5DDDATASPY
+   WHERE DDS_DDSPYID = C1.TKD_PROMPTDATA4;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_ADDDEFDDS' || chr(10) || 'invalid ref dataspy id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USEGRIDSYSDEFAULT
+   WHERE USD_GRIDID = C1.TKD_PROMPTDATA2
+      AND USD_USERID = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      INSERT INTO R5USEGRIDSYSDEFAULT
+         (USD_GRIDID,USD_USERID,USD_DATASPYID,
+            USD_DATASPYFILTER,USD_LASTSAVED,USD_UPDATECOUNT)
+      VALUES
+         (C1.TKD_PROMPTDATA2,C1.TKD_PROMPTDATA3,C1.TKD_PROMPTDATA4,
+            C1.TKD_PROMPTDATA5,SYSDATE,0);
+   ELSE    
+      UPDATE R5USEGRIDSYSDEFAULT
+      SET USD_DATASPYID = C1.TKD_PROMPTDATA4,
+        USD_DATASPYFILTER = C1.TKD_PROMPTDATA5
+      WHERE USD_GRIDID = C1.TKD_PROMPTDATA2
+         AND USD_USERID = C1.TKD_PROMPTDATA3;
+   END IF;
+END IF;
+/* delete default dataspy */
+IF C1.TKD_PROMPTDATA1 = 'DELDEFDDS' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_DELDEFDDS';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref grid id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'ref user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5GRID
+   WHERE GRD_GRIDID = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_DELDEFDDS' || chr(10) || 'invalid ref grid id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_DELDEFDDS' || chr(10) || 'invalid ref user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USEGRIDSYSDEFAULT
+   WHERE USD_GRIDID = C1.TKD_PROMPTDATA2
+      AND USD_USERID = C1.TKD_PROMPTDATA3;
+   IF ceq != 0 THEN
+      DELETE FROM R5USEGRIDSYSDEFAULT
+      WHERE USD_GRIDID = C1.TKD_PROMPTDATA2
+         AND USD_USERID = C1.TKD_PROMPTDATA3;
+   END IF;
+END IF;
+/* copy user start center */
+IF C1.TKD_PROMPTDATA1 = 'CPYSC' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYSC';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYSC' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYSC' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   SELECT * INTO SUSR FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   UPDATE R5USERS
+   SET USR_DEFAULT_ORG = SUSR.USR_DEFAULT_ORG,
+      USR_DEFAULT_CHART_TYPE = SUSR.USR_DEFAULT_CHART_TYPE,
+      USR_DEFAULT_CHART_PERIOD = SUSR.USR_DEFAULT_CHART_PERIOD,
+      USR_DEFAULT_CHART_GROUPBY = SUSR.USR_DEFAULT_CHART_GROUPBY,
+      USR_DEFAULT_CHART_SHOWYEAR = SUSR.USR_DEFAULT_CHART_SHOWYEAR,
+      USR_DEFAULT_KPI_SIZE = SUSR.USR_DEFAULT_KPI_SIZE,
+      USR_DEFAULT_CHART_STATE = SUSR.USR_DEFAULT_CHART_STATE,
+      USR_INBOXTAB = SUSR.USR_INBOXTAB
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+END IF;
+/* reset user start center */
+IF C1.TKD_PROMPTDATA1 = 'CLRSC' THEN
+   IF C1.TKD_PROMPTDATA2 IS NULL THEN
+      imsg  := 'MPPX_CLRSC' || chr(10) || 'source user id missing';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CLRSC' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   UPDATE R5USERS
+   SET USR_DEFAULT_ORG = NULL,
+      USR_DEFAULT_CHART_TYPE = NULL,
+      USR_DEFAULT_CHART_PERIOD = 'M',
+      USR_DEFAULT_CHART_GROUPBY = NULL,
+      USR_DEFAULT_CHART_SHOWYEAR = '-',
+      USR_DEFAULT_KPI_SIZE = NULL,
+      USR_DEFAULT_CHART_STATE = '+',
+      USR_INBOXTAB = NULL
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+END IF;
+/* add user screen cache */
+IF C1.TKD_PROMPTDATA1 = 'ADDSCH' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_ADDSCH';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target screen id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_ADDSCH' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5FUNCTIONS
+   WHERE FUN_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_ADDSCH' || chr(10) || 'invalid target screen id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5SCREENCACHE
+   WHERE SNC_USER = C1.TKD_PROMPTDATA2
+      AND SNC_FUNCTION = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      INSERT INTO R5SCREENCACHE
+         (SNC_USER,SNC_FUNCTION,SNC_LASTSAVED,SNC_UPDATECOUNT)
+      VALUES
+         (C1.TKD_PROMPTDATA2,C1.TKD_PROMPTDATA3,SYSDATE,0);
+   END IF;
+END IF;
+/* delete user screen cache */
+IF C1.TKD_PROMPTDATA1 = 'DELSCH' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_DELSCH';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target screen id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_DELSCH' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5FUNCTIONS
+   WHERE FUN_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_DELSCH' || chr(10) || 'invalid target screen id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5SCREENCACHE
+   WHERE SNC_USER = C1.TKD_PROMPTDATA2
+      AND SNC_FUNCTION = C1.TKD_PROMPTDATA3;
+   IF ceq != 0 THEN
+      DELETE FROM R5SCREENCACHE
+      WHERE SNC_USER = C1.TKD_PROMPTDATA2
+         AND SNC_FUNCTION = C1.TKD_PROMPTDATA3;
+   END IF;
+END IF;
+/* copy user report paramaters */
+IF C1.TKD_PROMPTDATA1 = 'CPYRPT' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYRPT';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYRPT' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYRPT' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_RFI IN CRFI(C1.TKD_PROMPTDATA2) LOOP
+      SELECT * INTO VRFI FROM R5REPORTFILTERS
+         WHERE RFI_USER = C1.TKD_PROMPTDATA2
+         AND RFI_FUNC = REC_RFI.RFI_FUNC
+         AND RFI_NAME = REC_RFI.RFI_NAME;
+
+      INSERT INTO R5REPORTFILTERS
+         (RFI_USER,RFI_FUNC,RFI_NAME,RFI_DEFAULT,
+         RFI_PARAM1,RFI_PARAM2,RFI_PARAM3,RFI_PARAM4,
+         RFI_PARAM5,RFI_PARAM6,RFI_PARAM7,RFI_PARAM8,
+         RFI_PARAM9,RFI_PARAM10,RFI_PARAM11,RFI_PARAM12,
+         RFI_PARAM13,RFI_PARAM14,RFI_PARAM15,RFI_PARAM16,
+         RFI_PARAM17,RFI_PARAM18,RFI_PARAM19,RFI_PARAM20,
+         RFI_PARAM21,RFI_PARAM22,RFI_PARAM23,RFI_PARAM24,
+         RFI_PARAM25,RFI_PARAM26,RFI_PARAM27,RFI_PARAM28,
+         RFI_PARAM29,RFI_PARAM30,RFI_CHKBOX1,RFI_CHKBOX2,
+         RFI_CHKBOX3,RFI_CHKBOX4,RFI_CHKBOX5,RFI_CHKBOX6,
+         RFI_RADIO,RFI_ORG,RFI_FROMDATE,RFI_TODATE,
+         RFI_CHKBOX7,RFI_UPDATECOUNT,RFI_UPDATED,RFI_VISFLDS,
+         RFI_ORDERBY,RFI_ORDERTYPE,RFI_GROUPBY,RFI_CHKBOX8,
+         RFI_CHKBOX9,RFI_CHKBOX10,RFI_CHKBOX11,RFI_CHKBOX12,
+         RFI_CHKBOX13,RFI_CHKBOX14,RFI_CHKBOX15,RFI_LASTSAVED,
+         RFI_PARAM31,RFI_PARAM32,RFI_PARAM33,RFI_PARAM34,
+         RFI_PARAM35,RFI_PARAM36,RFI_PARAM37,RFI_PARAM38,
+         RFI_PARAM39,RFI_PARAM40,RFI_CHKBOX16,RFI_CHKBOX17,
+         RFI_CHKBOX18,RFI_CHKBOX19,RFI_CHKBOX20,RFI_CHKBOX21,
+         RFI_CHKBOX22,RFI_CHKBOX23,RFI_CHKBOX24,RFI_CHKBOX25)
+      VALUES
+         (C1.TKD_PROMPTDATA3,VRFI.RFI_FUNC,VRFI.RFI_NAME,VRFI.RFI_DEFAULT,
+         VRFI.RFI_PARAM1,VRFI.RFI_PARAM2,VRFI.RFI_PARAM3,VRFI.RFI_PARAM4,
+         VRFI.RFI_PARAM5,VRFI.RFI_PARAM6,VRFI.RFI_PARAM7,VRFI.RFI_PARAM8,
+         VRFI.RFI_PARAM9,VRFI.RFI_PARAM10,VRFI.RFI_PARAM11,VRFI.RFI_PARAM12,
+         VRFI.RFI_PARAM13,VRFI.RFI_PARAM14,VRFI.RFI_PARAM15,VRFI.RFI_PARAM16,
+         VRFI.RFI_PARAM17,VRFI.RFI_PARAM18,VRFI.RFI_PARAM19,VRFI.RFI_PARAM20,
+         VRFI.RFI_PARAM21,VRFI.RFI_PARAM22,VRFI.RFI_PARAM23,VRFI.RFI_PARAM24,
+         VRFI.RFI_PARAM25,VRFI.RFI_PARAM26,VRFI.RFI_PARAM27,VRFI.RFI_PARAM28,
+         VRFI.RFI_PARAM29,VRFI.RFI_PARAM30,VRFI.RFI_CHKBOX1,VRFI.RFI_CHKBOX2,
+         VRFI.RFI_CHKBOX3,VRFI.RFI_CHKBOX4,VRFI.RFI_CHKBOX5,VRFI.RFI_CHKBOX6,
+         VRFI.RFI_RADIO,VRFI.RFI_ORG,VRFI.RFI_FROMDATE,VRFI.RFI_TODATE,
+         VRFI.RFI_CHKBOX7,0,SYSDATE,VRFI.RFI_VISFLDS,
+         VRFI.RFI_ORDERBY,VRFI.RFI_ORDERTYPE,VRFI.RFI_GROUPBY,VRFI.RFI_CHKBOX8,
+         VRFI.RFI_CHKBOX9,VRFI.RFI_CHKBOX10,VRFI.RFI_CHKBOX11,VRFI.RFI_CHKBOX12,
+         VRFI.RFI_CHKBOX13,VRFI.RFI_CHKBOX14,VRFI.RFI_CHKBOX15,SYSDATE,
+         VRFI.RFI_PARAM31,VRFI.RFI_PARAM32,VRFI.RFI_PARAM33,VRFI.RFI_PARAM34,
+         VRFI.RFI_PARAM35,VRFI.RFI_PARAM36,VRFI.RFI_PARAM37,VRFI.RFI_PARAM38,
+         VRFI.RFI_PARAM39,VRFI.RFI_PARAM40,VRFI.RFI_CHKBOX16,VRFI.RFI_CHKBOX17,
+         VRFI.RFI_CHKBOX18,VRFI.RFI_CHKBOX19,VRFI.RFI_CHKBOX20,VRFI.RFI_CHKBOX21,
+         VRFI.RFI_CHKBOX22,VRFI.RFI_CHKBOX23,VRFI.RFI_CHKBOX24,VRFI.RFI_CHKBOX25);
+   END LOOP;
+END IF;
+/* clear user report paramaters */
+IF C1.TKD_PROMPTDATA1 = 'DELRPT' THEN
+   IF C1.TKD_PROMPTDATA2 IS NULL THEN
+      imsg  := 'MPPX_DELRPT';
+      imsg := imsg || chr(10) || 'source user id missing';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_DELRPT' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   FOR REC_RFI IN CRFI(C1.TKD_PROMPTDATA2) LOOP
+      SELECT * INTO VRFI FROM R5REPORTFILTERS
+         WHERE RFI_USER = C1.TKD_PROMPTDATA2
+         AND RFI_FUNC = REC_RFI.RFI_FUNC
+         AND RFI_NAME = REC_RFI.RFI_NAME;
+      DELETE FROM R5REPORTFILTERS
+      WHERE RFI_USER = VRFI.RFI_USER
+         AND RFI_FUNC = VRFI.RFI_FUNC
+         AND RFI_NAME = VRFI.RFI_NAME;
+   END LOOP;
+END IF;
+/* replace user comments data */
+IF C1.TKD_PROMPTDATA1 = 'CPYCMT' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYCMT';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYCMT' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYCMT' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+    UPDATE R5ADDETAILS
+    SET ADD_USER = C1.TKD_PROMPTDATA3,
+      ADD_UPDUSER = C1.TKD_PROMPTDATA3,
+      ADD_UPDATED = to_date(C1.TKD_PROMPTDATA9,'DD-MON-YYYY HH24:MI')
+    WHERE ADD_CODE = C1.TKD_PROMPTDATA4
+      AND ADD_RENTITY = C1.TKD_PROMPTDATA5
+      AND ADD_TYPE = C1.TKD_PROMPTDATA6
+      AND ADD_LANG = C1.TKD_PROMPTDATA7
+      AND ADD_LINE = C1.TKD_PROMPTDATA8;
+END IF;
+/* replace user operator checklist data */
+IF C1.TKD_PROMPTDATA1 = 'CPYOCK' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYOCK';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYOCK' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYOCK' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_OCK IN COCK(C1.TKD_PROMPTDATA2) LOOP
+    UPDATE R5OPERATORCHECKLISTS
+    SET OCK_CREATEDBY = C1.TKD_PROMPTDATA3,
+      OCK_UPDATEDBY = C1.TKD_PROMPTDATA3
+    WHERE OCK_CODE = REC_OCK.OCK_CODE;
+   END LOOP;
+END IF;
+/* replace user updated operator checklist data */
+IF C1.TKD_PROMPTDATA1 = 'CPYOCU' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYOCU';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYOCU' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYOCU' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_OCU IN COCU(C1.TKD_PROMPTDATA2) LOOP
+    UPDATE R5OPERATORCHECKLISTS
+    SET OCK_UPDATEDBY = C1.TKD_PROMPTDATA3
+    WHERE OCK_CODE = REC_OCU.OCK_CODE;
+   END LOOP;
+END IF;
+/* replace user document data */
+IF C1.TKD_PROMPTDATA1 = 'CPYDOC' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYDOC';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYDOC' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYDOC' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_DOC IN CDOC(C1.TKD_PROMPTDATA2) LOOP
+    UPDATE R5DOCUMENTS
+    SET DOC_CREATEDBY = C1.TKD_PROMPTDATA3,
+      DOC_UPDATEDBY = C1.TKD_PROMPTDATA3
+    WHERE DOC_CODE = REC_DOC.DOC_CODE;
+   END LOOP;
+END IF;
+/* replace user updated document data */
+IF C1.TKD_PROMPTDATA1 = 'CPYDOU' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYDOU';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYDOU' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYDOU' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_DOU IN CDOU(C1.TKD_PROMPTDATA2) LOOP
+    UPDATE R5DOCUMENTS
+    SET DOC_UPDATEDBY = C1.TKD_PROMPTDATA3
+    WHERE DOC_CODE = REC_DOU.DOC_CODE;
+   END LOOP;
+END IF;
+/* replace user updated checklist data */
+IF C1.TKD_PROMPTDATA1 = 'CPYACU' THEN
+   IF ( C1.TKD_PROMPTDATA2 IS NULL OR
+      C1.TKD_PROMPTDATA3 IS NULL ) THEN
+      imsg  := 'MPPX_CPYACU';
+      IF (C1.TKD_PROMPTDATA2 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'source user id missing';
+      END IF;
+      IF (C1.TKD_PROMPTDATA3 IS NULL) THEN 
+         imsg := imsg || chr(10) || 'target user id missing';
+      END IF;
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA2;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYACU' || chr(10) || 'invalid source user id';
+      RAISE err;
+   END IF;
+   SELECT COUNT(1) INTO ceq FROM R5USERS
+   WHERE USR_CODE = C1.TKD_PROMPTDATA3;
+   IF ceq = 0 THEN
+      imsg := 'MPPX_CPYACU' || chr(10) || 'invalid target user id';
+      RAISE err;
+   END IF;
+   FOR REC_ACU IN CACU(C1.TKD_PROMPTDATA2) LOOP
+    UPDATE R5ACTCHECKLISTS
+    SET ACK_UPDATEDBY = C1.TKD_PROMPTDATA3
+    WHERE ACK_CODE = REC_ACU.ACK_CODE;
+   END LOOP;
+END IF;
+o7interface.trkdel(C1.TKD_TRANSID);
+END IF;
+
+
+if c1.tkd_trans = 'MPPW' then 
+  select * into oud from R5OBJUSAGEDEFS
+  where oud_object_org = C1.TKD_PROMPTDATA1
+    and oud_object = C1.TKD_PROMPTDATA2
+    and oud_uom = C1.TKD_PROMPTDATA3;
+  UPDATE R5OBJUSAGEDEFS
+  SET oud_totalusage = oud.oud_totalusage,
+    oud_lastreaddate = oud.oud_lastreaddate
+  WHERE oud_object_org = C1.TKD_PROMPTDATA1
+    and oud_object = C1.TKD_PROMPTDATA4
+    and oud_uom = C1.TKD_PROMPTDATA3;
+  o7interface.trkdel(c1.tkd_transid);
+end if;
+
+if c1.tkd_trans = 'MPPZ' then 
+/*
+          UPDATE r5objects
+          SET OBJ_UDFCHAR38 =C1.TKD_PROMPTDATA3
+          WHERE OBJ_ORG = C1.TKD_PROMPTDATA1 AND OBJ_CODE = C1.TKD_PROMPTDATA2;
+*/
+          UPDATE r5events
+          SET EVT_STATUS =C1.TKD_PROMPTDATA3
+          WHERE EVT_ORG = C1.TKD_PROMPTDATA1 AND EVT_CODE = C1.TKD_PROMPTDATA2;
+/*
+if C1.TKD_PROMPTDATA1 = 'CALC' then 
+  UPDATE R5OBJUSAGEDEFS
+  SET OUD_DFLTDAILYUSG = C1.TKD_PROMPTDATA5
+  WHERE oud_object_org = C1.TKD_PROMPTDATA2
+    and oud_object = C1.TKD_PROMPTDATA3
+    and oud_uom = C1.TKD_PROMPTDATA4;
+end if;
+if C1.TKD_PROMPTDATA1 = 'DATE' then 
+  UPDATE R5OBJUSAGEDEFS
+  SET oud_totalusage = C1.TKD_PROMPTDATA5,
+    oud_lastreaddate = TO_DATE(C1.TKD_PROMPTDATA6, 'YYYY-MM-DD HH24:MI')
+  WHERE oud_object_org = C1.TKD_PROMPTDATA2
+    and oud_object = C1.TKD_PROMPTDATA3
+    and oud_uom = C1.TKD_PROMPTDATA4;
+end if;
+*/
+  o7interface.trkdel(c1.tkd_transid);
+end if;
+
+if c1.tkd_trans = 'MPPV' then 
+/*
+          UPDATE r5operatorchecklists
+          SET OCK_OBJECT_ORG =C1.TKD_PROMPTDATA2,
+          OCK_OBJECT =C1.TKD_PROMPTDATA3
+          WHERE OCK_CODE = C1.TKD_PROMPTDATA1;
+
+          UPDATE r5actchecklists
+          SET ACK_OBJECT_ORG =C1.TKD_PROMPTDATA2,
+          ACK_OBJECT =C1.TKD_PROMPTDATA3
+          WHERE ack_entitykey = C1.TKD_PROMPTDATA1 AND ack_entityorg  = C1.TKD_PROMPTDATA2 AND ack_rentity = 'OPCK';
+*/
+   FOR PSQPK IN MPPSQ(C1.TKD_PROMPTDATA1,C1.TKD_PROMPTDATA2) LOOP
+      SELECT * INTO psq FROM R5PATTERNSEQUENCES WHERE PSQ_PK = PSQPK.PSQ_PK AND PSQ_REVISION = PSQPK.PSQ_REVISION;
+  
+      FOR PSQEV IN EVTMP(PSQPK.PSQ_PK,PSQPK.PSQ_REVISION) LOOP
+          UPDATE R5EVENTS
+          SET EVT_STANDWORK = psq.PSQ_STANDWORK
+          WHERE EVT_CODE = PSQEV.EVT_CODE;
+
+      END LOOP;
+   END LOOP;
+
+   o7interface.trkdel(c1.tkd_transid);
+end if;
+
+
+exception
+   WHEN err THEN
+   RAISE_APPLICATION_ERROR(-20003, imsg);
+      when no_data_found then
+            null;
+      when others then
+            RAISE_APPLICATION_ERROR(-20005, SQLCODE || SQLERRM);
+end;
