@@ -1,0 +1,1 @@
+select rowid from r5bookedhours b where boo_octype <> 'OD' and  b.rowid=:rowid and exists (select 1 from r5events where evt_code = boo_event and evt_org in ('BPK','ALC','SYN'));
