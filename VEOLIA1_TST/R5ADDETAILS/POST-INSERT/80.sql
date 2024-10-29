@@ -1,6 +1,7 @@
 declare
    rec_add   r5addetails%rowtype;
    temp_var  varchar2(32767); -- This is the maximum size for VARCHAR2 in PL/SQL
+   temp_var2 varchar2(32767); 
    vEvent    r5events.evt_code%type;
    iErrMsg   varchar2(400);
    err_val   exception;
@@ -12,7 +13,20 @@ begin
          iErrMsg := 'Emojis are not allowed!';
          raise err_val;
       end if;
-
+      
+      select o7reptrimtags(rec_add.add_text) into temp_var2 from dual;
+       --iErrMsg := temp_var2;
+         --raise err_val;
+      IF REGEXP_LIKE(temp_var2, '([\x{1F600}-\x{1F64F}]|[\x{1F300}-\x{1F5FF}]|[\x{1F680}-\x{1F6FF}]|[\x{1F700}-\x{1F77F}])', 'n') THEN
+        iErrMsg := 'Emojis are not allowed!';
+         raise err_val;
+      end if;
+/*
+      IF REGEXP_LIKE(temp_var, '[\uD800-\uDBFF][\uDC00-\uDFFF]', 'n') THEN 
+         iErrMsg := 'Emojis are not allowed!';
+         raise err_val;
+      end if;
+*/
       if length(o7reptrimtags(rec_add.add_text)) > 4000 then
          iErrMsg := 'The comment length has exceeded 4000 characters, please edit the content.';
          raise err_val;
@@ -27,10 +41,10 @@ begin
       end if;
    end if;
    
-   
+/*  
 EXCEPTION
    when err_val THEN
    RAISE_APPLICATION_ERROR ( -20003, iErrMsg) ;
    when others then
-   RAISE_APPLICATION_ERROR ( SQLCODE,'Error in Flex R5ADDETAILS/Post Insert/80/'||substr(SQLERRM, 1, 500)) ;    
+   RAISE_APPLICATION_ERROR ( SQLCODE,'Error in Flex R5ADDETAILS/Post Insert/80/'||substr(SQLERRM, 1, 500)) ;   */ 
 end;
