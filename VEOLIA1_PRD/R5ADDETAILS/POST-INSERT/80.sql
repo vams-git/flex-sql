@@ -8,10 +8,10 @@ begin
    select * into rec_add from r5addetails ad1 where  ad1.rowid=:rowid;
    if rec_add.add_entity in ('REQ','EVNT') then
       temp_var := lower(substr (rec_add.add_text, 1, 32767));
-      if instr(temp_var,'emoji') > 0 then
+      /*if instr(temp_var,'emoji') > 0 then
          iErrMsg := 'Emojis are not allowed!';
          raise err_val;
-      end if;
+      end if;*/
 
       if length(o7reptrimtags(rec_add.add_text)) > 4000 then
          iErrMsg := 'The comment length has exceeded 4000 characters, please edit the content.';
