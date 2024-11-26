@@ -11,7 +11,7 @@ declare
    vIsReported      number;
    vFaultNoteCnt    number;
    ceventno         r5events.evt_code%type;
-   vAct		        r5activities.act_act%type;
+   vAct           r5activities.act_act%type;
    vDateTime        date;
    vDate            date;
    vWODesc          r5events.evt_desc%type;
@@ -20,6 +20,7 @@ declare
    vCommLine        r5addetails.add_line%type;
    vComm            varchar2(4000);
    vComm400         varchar2(4000);
+   v400DocCnt       number;
    vDocDesc         r5documents.doc_desc%type;
    vAssignto        r5personnel.per_code%type;
    vFirst405Notes   r5actchecklists.ack_notes%type;
@@ -161,6 +162,22 @@ begin
           raise err;
       end if;
       
+      --No DVR photo has been attached to checklist #400, please ensure a DVR photo is attached.
+      if ock.ock_org in ('TAS','SAU') then
+        select count(1) into v400DocCnt
+        from  r5actchecklists ack,r5docentities dae,r5documents doc
+        where ack_code = dae_code
+        and   dae_document = doc_code
+        and   dae_entity = 'OPCL'  
+        and   ack_rentity = 'OPCK' and ack_entitykey = ock.ock_code and ack_entityorg = ock.ock_org
+        and   ack_sequence in (400);
+        if v400DocCnt = 0 then
+            iErrMsg := 'No DVR photo has been attached to checklist #400, please ensure a DVR photo is attached.';
+            raise err;
+        end if;
+      end if;
+      
+      
       select count(1) into vFaultCnt
       from r5actchecklists
       where ack_rentity = 'OPCK' and ack_entitykey = ock.ock_code and ack_entityorg = ock.ock_org
@@ -197,18 +214,18 @@ begin
             raise err;
          end if;
 
-		 select count(1) into vFaultCategoryExist
-		 from r5actchecklists
+     select count(1) into vFaultCategoryExist
+     from r5actchecklists
          where ack_rentity = 'OPCK' and ack_entitykey = ock.ock_code and ack_entityorg = ock.ock_org
          and   ack_sequence in (440);
-		 
-		 select count(1) into vFaultCategoryCnt
-		 from r5actchecklists
+     
+     select count(1) into vFaultCategoryCnt
+     from r5actchecklists
          where ack_rentity = 'OPCK' and ack_entitykey = ock.ock_code and ack_entityorg = ock.ock_org
          and   ack_sequence in (440)
          and   ack_finding is not null;
          
-		 if vFaultCategoryExist != 0 AND vFaultCategoryCnt < 1 then
+     if vFaultCategoryExist != 0 AND vFaultCategoryCnt < 1 then
             iErrMsg := 'Please indicate at least one category of the faults reported.';
             raise err;
          end if;
@@ -325,15 +342,15 @@ begin
               null,null,vWODesc,'RQ','CO','*','15TV',null,null,vAssignto,
               vUDFChar27,vEvtMrc,vSTDWO
               ); 
-			  vAct := null;
+        vAct := null;
               o7creob1( ceventno, 'JOB', obj.obj_code, obj.obj_org, obj.obj_obtype, obj.obj_obrtype, chk );
               if vSTDWO is not null then
                  o7cract1(ceventno,NULL,vSTDWO,NULL ,NULL,8,vDate, 'Q', NULL, NULL, NULL, NULL, vEvtMrc, chk );
                  
                  FOR i IN act( ceventno ) LOOP
-				   if vAct is null then
-					  vAct := i.act_act;
-				   end if;
+           if vAct is null then
+            vAct := i.act_act;
+           end if;
                   
                    IF i.act_task IS NOT NULL THEN
                       --iErrMsg := i.act_task;
@@ -355,10 +372,10 @@ begin
                    END IF;
                  END LOOP;
               end if;
-			  
-			  update r5actchecklists
-			  set    ack_event = ceventno,ack_act = vAct
-			  where  ack_code =  rec_fault.ack_code;
+        
+        update r5actchecklists
+        set    ack_event = ceventno,ack_act = vAct
+        where  ack_code =  rec_fault.ack_code;
               
               vCommLine := 0;
               vComm := null;
@@ -407,10 +424,10 @@ begin
                
               --405 document
               for rec_doc in cur_opdoc_405(ock.ock_code,ock.ock_org,rec_fault.ack_code) loop
-				  --Finding description+""_DVR""+ Note from sequence 500 + Date/timestamp in formatDDMMMYYY+""_""+HH+""_""+MM (With HH the hours and MM the minutes)
-				  select substr(r5o7.o7get_desc('EN','FIND',rec_doc.ack_finding,'','') ||'_DVR_'||vFaultNote||'_'||to_char(o7gttime(ock.ock_org),'DDMONYYYY_HH24_MI'),1,80)
-				  into   vDocDesc from dual;
-					 
+              --Finding description+""_DVR""+ Note from sequence 500 + Date/timestamp in formatDDMMMYYY+""_""+HH+""_""+MM (With HH the hours and MM the minutes)
+              select substr(r5o7.o7get_desc('EN','FIND',rec_doc.ack_finding,'','') ||'_DVR_'||vFaultNote||'_'||to_char(o7gttime(ock.ock_org),'DDMONYYYY_HH24_MI'),1,80)
+              into   vDocDesc from dual;
+           
                   update r5documents d
                   set   doc_desc = vDocDesc,doc_class = 'VEHI',d.doc_class_org = '*'
                   where doc_code = rec_doc.doc_code;
@@ -423,9 +440,9 @@ begin
                    where dae_entity = 'OPCL'
                    and   dae_code = rec_doc.ack_code
                    and   dae_document = rec_doc.doc_code;
-				  
+          
                end loop;
-			   
+         
               vOckUDF02 := vOckUDF02 || ceventno ||'/';
             end loop; -- loop cur_fault
           
