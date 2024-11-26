@@ -43,7 +43,7 @@ begin
           and   ava_table = 'R5EVENTS' 
           and   ava_primaryid = evt.evt_code
           and   ava_updated = '+'
-          and   abs(sysdate - ava_changed) * 24 * 60 * 60 < 2
+          and   abs(sysdate - ava_changed) * 24 * 60 * 60 < 5
           order by ava_changed desc
           ) where rownum <= 1;
        exception when no_data_found then 
