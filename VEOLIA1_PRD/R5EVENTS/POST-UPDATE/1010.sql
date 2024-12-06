@@ -1,6 +1,6 @@
 select rowid from r5events evt
 where evt.rowid=:rowid
-and   evt.evt_org in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP')
+and   evt.evt_org in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','NVQ','FCG')
 and   evt.evt_status in ('49MF','50SO')
 and exists
 (
