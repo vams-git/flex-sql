@@ -17,7 +17,7 @@ declare
   and    abs(sysdate - ava_changed) * 24 * 60 * 60 <= 2;
 begin
   select * into obj from r5objects where rowid =:rowid;
-  if obj.obj_org in ('TAS','VIC','WAR','WAU','NWA','SAU','NSW','QLD','NTE','NVE','NVP','NVW') then
+  if obj.obj_org in ('TAS','VIC','WAR','WAU','NWA','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ') then
       for rec_ava in cur_ava(obj.obj_code,obj.obj_org) loop
           vFlag := 'Y';
           if obj.obj_org = 'TAS' then
@@ -35,6 +35,8 @@ begin
           elsif obj.obj_org = 'NVW' then
              mae.mae_param1 := 'yann.josse@veolia.com; fleet.datateam@veolia.com; afiq.rostam@veolia.com';
           elsif obj.obj_org = 'NVP' then
+             mae.mae_param1 := 'yann.josse@veolia.com; fleet.datateam@veolia.com; afiq.rostam@veolia.com';
+          elsif obj.obj_org = 'NVQ' then
              mae.mae_param1 := 'yann.josse@veolia.com; fleet.datateam@veolia.com; afiq.rostam@veolia.com';
           elsif obj.obj_org = 'SAU' then
              mae.mae_param1 := 'damian.jachmann@veolia.com; fleet.datateam@veolia.com; yann.josse@veolia.com; afiq.rostam@veolia.com';
