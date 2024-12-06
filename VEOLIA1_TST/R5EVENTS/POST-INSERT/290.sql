@@ -12,7 +12,7 @@ declare
   iErrMsg           varchar2(400);   
 begin
   select * into evt from r5events where rowid=:rowid;
-  if evt.evt_jobtype not in ('MEC') and evt.evt_org IN ('TAS','RRM','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','FCG') then
+  if evt.evt_jobtype not in ('MEC') and evt.evt_org IN ('TAS','RRM','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','NVQ','FCG') then
      if evt.evt_status in ('40PR') and evt.evt_person is not null then
          --check is evt_person is contract
          begin
@@ -87,6 +87,12 @@ begin
                 end if;
                 if evt.evt_org = 'NVW' then
                    vMailTemp := 'M-NVW-WO-CONT-S';
+                end if;
+                if evt.evt_org = 'NVQ' then
+                   vMailTemp := 'M-NVQ-WO-CONT-S';
+                end if;
+                if evt.evt_org = 'FCG' then
+                   vMailTemp := 'M-FCG-WO-CONT-S';
                 end if;
                   --vMailTemp := 'M-TAS-WO-CONT';
                   select count(1) into vCnt from r5mailevents mae
