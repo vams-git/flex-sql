@@ -17,11 +17,11 @@ begin
      from   r5events evt,r5organization org
      where  evt.evt_org = org.org_code
      and    evt_code = rql.rql_event;
-     if (vLocale ='NZ' or vOrg in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP')) and vStatus in ('55CA') then
+     if (vLocale ='NZ' or vOrg in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','NVQ','FCG')) and vStatus in ('55CA') then
         iErrMsg := 'Cannot create requisition due to work order is Cost Assigned.';
         raise err_val;
      end if;
-     if (vLocale not in ('NZ') and vOrg not in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP')) and vStatus in ('50SO','51SO','55CA') then
+     if (vLocale not in ('NZ') and vOrg not in ('TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','NVQ','FCG')) and vStatus in ('50SO','51SO','55CA') then
        iErrMsg := 'Cannot create requisition due to work order is Sign Off or Cost Assigned.';
        raise err_val;
      end if;
