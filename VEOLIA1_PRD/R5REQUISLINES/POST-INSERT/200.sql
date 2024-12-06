@@ -14,7 +14,7 @@ begin
   where req_code = rql.rql_req
   and   req_tocode = str_code and str_org = req_org ;
   
-  if v_Org in ('HWC','WYU','GER','ROS','WCC','STA','VEO','WSL','WBP','BEN','BAL','GSP','BRK','RRM','QTN','KIL','RUA','THC','TTB','CHB','WLT','WEW','WOO','WLT','SBW','CFA','SWP','TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','DOC','BAR','CGC','FCG','SPF') then
+  if v_Org in ('HWC','WYU','GER','ROS','WCC','STA','VEO','WSL','WBP','BEN','BAL','GSP','BRK','RRM','QTN','KIL','RUA','THC','TTB','CHB','WLT','WEW','WOO','WLT','SBW','CFA','SWP','TAS','VIC','WAU','WAR','NWA','SAU','NSW','QLD','NTE','NVE','NVW','NVP','NVQ','DOC','BAR','CGC','FCG','SPF') then
     
      if nvl(vStoreClass,' ') <> 'GIF' then
          if rql.rql_type in ('PS') and  rql.rql_part  is not null then
