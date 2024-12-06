@@ -66,7 +66,7 @@ begin
      end if;
    end if;
      
-   if vOrg in ('QLD','NTE','VIC') and boo.boo_person is not null then
+   if vOrg in ('QLD','NTE','VIC','NVQ') and boo.boo_person is not null then
      if boo.boo_octype not in ('N','O') then
         iErrMsg := 'You can only enter N, or O Type of Hours.';
         raise DB_ERROR;
