@@ -47,12 +47,12 @@ BEGIN
   end if;*/
 
   if nvl(evt.evt_udfchar29,' ') <> nvl(evt.evt_mrc,' ') then
-     if evt.evt_org in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','FCG') and evt.evt_mrc is not null then
+     if evt.evt_org in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ','FCG') and evt.evt_mrc is not null then
         update r5events 
         set evt_udfchar29 = evt.evt_mrc 
         where evt_code = evt.evt_code;
      end if;
-     if evt.evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','FCG') and evt.evt_udfchar29 is not null then
+     if evt.evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ','FCG') and evt.evt_udfchar29 is not null then
         update r5events 
         set evt_mrc = evt.evt_udfchar29 
         where evt_code = evt.evt_code;
