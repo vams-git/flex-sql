@@ -16,8 +16,8 @@ declare
   and   act_task = tsk_code
   and   ack_event =iEvtCode
   and   (
-  (evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW') and instr(nvl(tsk_udfchar02,'48MR,65RP,35SB,50SO,51SO,52DT'),evt_status) > 0)
-  or (evt_org in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW') and instr('49MF,50SO',evt_status) > 0 )
+  (evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ','FCG') and instr(nvl(tsk_udfchar02,'48MR,65RP,35SB,50SO,51SO,52DT'),evt_status) > 0)
+  or (evt_org in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ','FCG') and instr('49MF,50SO',evt_status) > 0 )
   )
   ;
   
@@ -66,7 +66,7 @@ begin
   if evt.evt_type in ('JOB','PPM') then
     --IF evt.EVT_STATUS IN ('48MR','65RP','35SB','50SO','51SO','52DT') THEN
       for rec_ackact in cur_ackact(evt.evt_code) LOOP
-        if evt.evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW') then
+        if evt.evt_org not in ('TAS','VIC','WAU','NWA','WAR','SAU','NSW','QLD','NTE','NVE','NVP','NVW','NVQ','FCG') then
           for rec_ack in cur_ack(evt.evt_code,rec_ackact.ack_act) LOOP
             vAckSeqs :=vAckSeqs||rec_ack.ack_sequence||',';
           end loop;
