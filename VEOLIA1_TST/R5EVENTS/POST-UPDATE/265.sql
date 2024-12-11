@@ -22,9 +22,18 @@ BEGIN
      END IF;
      select sum(nvl(trl_origqty,trl_qty)) into vTrlQty
      from r5translines
-     where trl_event =  evt.evt_code;
+     where trl_event =  evt.evt_code
+	 and   trl_type = 'I';
      IF vTrlQty > 0 THEN
           iErrMsg:= 'This workorder cannot move to '|| vStatusDesc || ' as there are parts or additional cost booked against it';
+          RAISE errorCheck;
+     END IF; 
+	 select sum(case when trl_type ='RECV' then nvl(trl_origqty,trl_qty) else nvl(trl_origqty,trl_qty) * -1 end) into vTrlQty
+     from r5translines
+     where trl_event =  evt.evt_code
+	 and   trl_type in ('RECV','RETN');
+     IF vTrlQty > 0 THEN
+          iErrMsg:= 'This workorder cannot move to '|| vStatusDesc || ' as there are purchase order parts booked against it';
           RAISE errorCheck;
      END IF; 
      select sum(nvl(tou_orighours,tou_hours)) into vTouHours
