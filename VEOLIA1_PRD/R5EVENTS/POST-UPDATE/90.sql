@@ -22,7 +22,7 @@ vOpenPOVal_Orgs varchar2(4000);
 begin
     select * into evt from r5events where rowid=:rowid;
     if evt.evt_type in ('JOB','PPM') then
-       vOpenPOVal_Orgs := 'TAS, NWA, WAU, WAR, SAU, NTE, QLD, NSW, VIC, NVP, NVW, NVE';
+       vOpenPOVal_Orgs := 'TAS, NWA, WAU, WAR, SAU, NTE, QLD, NSW, VIC, NVP, NVW, NVE, NVQ';
        select org_locale into vLocale from r5organization where org_code = evt.evt_org;
      
        if vLocale in ('NZ') or instr(vOpenPOVal_Orgs,evt.evt_org) > 0 then
