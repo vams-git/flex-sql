@@ -49,7 +49,11 @@ begin
              --allow user groups VNZ-NOP1 an VNZ-NOP2 to be able to change WO status from 41IP "In progress" to "49MF "Mobile Finished" only when WO class is equal to PS
              if vNewValue is not null and evt.evt_status = '49MF' and vOldValue = '41IP' then 
               select usr_group into vGroup from r5users where usr_code = o7sess.cur_user;
-                if vGroup in ('VNZ-NOP1','VNZ-NOP2') and evt.evt_class <> 'PS' then
+                if vGroup = 'VNZ-NOP1' and evt.evt_class not in ('PS','CO') then
+                 iErrMsg := 'You are only authorized to change status to Mobile Fininshed for PS/CO class work orders.';
+                 raise val_err;
+                end if;
+                if vGroup = 'VNZ-NOP2' and evt.evt_class <> 'PS' then
                  iErrMsg := 'You are only authorized to change status to Mobile Fininshed for PS class work orders.';
                  raise val_err;
                 end if;
